@@ -1,3 +1,1513 @@
-script apagado nova atualização em baixo 
+-- Notification
+local StarterGui = game:GetService("StarterGui")
+StarterGui:SetCore("SendNotification",{
+    Title="Sor_UmPlayer Hub",
+    Text="Farm Automático carregado com sucesso!",
+    Duration=5
+})
 
-https://link-target.net/1366254/FopmWzhSxX3d
+-- Lib UI
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- Window
+local Window = WindUI:CreateWindow({
+    Title = "🌟 Sor_UmPlayer HUB 🌟",
+    Author = "made by Sor_Gostoso",
+    Folder = "CloudHub",
+    Size = UDim2.fromOffset(460, 460),
+    Transparent = true,
+    Theme = "Dark",
+    Resizable = true,
+    SideBarWidth = 200,
+})
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local VIM = game:GetService("VirtualInputManager")
+
+local player = Players.LocalPlayer
+local remote = ReplicatedStorage:WaitForChild("MainRemote")
+
+-- Variáveis Gerais
+local autoClick = false
+local farmAutomatico = false
+
+local rodandoFatherOrfi = false
+local rodandoChris = false
+local rodandoYuno = false
+local rodandoJohnny = false
+local rodandoAsta = false
+local rodandoRenna = false
+local rodandoDavrqwy = false
+local rodandoAhmed = false
+local rodandoFuegoleon = false  -- Nova variável para Fuegoleon
+
+local usePremiumFarm = false
+
+local quantidadeGrab = 5
+
+-- Variáveis Boss
+local bossLichtEnabled = false
+local bossWitchQueenEnabled = false
+local killBossEasyEnabled = false
+local bossDistance = 20
+
+-- Plataformas
+local premiumPlatform
+local premiumPlatformPosition = Vector3.new(-1438, -203, -566)
+
+local bossPlatform
+local bossPlatformPosition = Vector3.new(-1368, -96, -222)
+
+local function createPremiumPlatform()
+    if premiumPlatform then premiumPlatform:Destroy() end
+    premiumPlatform = Instance.new("Part")
+    premiumPlatform.Name = "PremiumPlatform"
+    premiumPlatform.Size = Vector3.new(6, 1, 6)
+    premiumPlatform.Anchored = true
+    premiumPlatform.CanCollide = true
+    premiumPlatform.Material = Enum.Material.Neon
+    premiumPlatform.Color = Color3.fromRGB(85, 170, 255)
+    premiumPlatform.CFrame = CFrame.new(premiumPlatformPosition)
+    premiumPlatform.Parent = Workspace
+end
+
+local function createBossPlatform()
+    if bossPlatform then bossPlatform:Destroy() end
+    bossPlatform = Instance.new("Part")
+    bossPlatform.Name = "BossPlatform"
+    bossPlatform.Size = Vector3.new(6, 1, 6)
+    bossPlatform.Anchored = true
+    bossPlatform.CanCollide = true
+    bossPlatform.Material = Enum.Material.Neon
+    bossPlatform.Color = Color3.fromRGB(85, 170, 255)
+    bossPlatform.CFrame = CFrame.new(bossPlatformPosition)
+    bossPlatform.Parent = Workspace
+end
+
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    createPremiumPlatform()
+    createBossPlatform()
+end)
+
+if player.Character then
+    createPremiumPlatform()
+    createBossPlatform()
+end
+
+-- AutoClick Virtual
+task.spawn(function()
+    while true do
+        if autoClick then
+            VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            task.wait(0.05)
+            VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- Utils
+local function desligarTudo()
+    rodandoFatherOrfi = false rodandoChris = false rodandoYuno = false rodandoJohnny = false
+    rodandoAsta = false rodandoRenna = false rodandoDavrqwy = false rodandoAhmed = false
+    rodandoFuegoleon = false
+    bossLichtEnabled = false bossWitchQueenEnabled = false killBossEasyEnabled = false
+    autoClick = false
+end
+
+local function getLevel()
+    local ls = player:FindFirstChild("leaderstats")
+    if ls and ls:FindFirstChild("Level") then return ls.Level.Value end
+    return 0
+end
+
+local function equiparTool(nome)
+    local char = player.Character
+    if not char then return end
+    local tool = player.Backpack:FindFirstChild(nome) or char:FindFirstChild(nome)
+    if tool and tool.Parent ~= char then
+        char.Humanoid:EquipTool(tool)
+    end
+end
+
+local function desequiparTool()
+    local char = player.Character
+    if not char then return end
+    char.Humanoid:UnequipTools()
+end
+
+-- Funções de busca
+local function getRandomPart(nome)
+    local parts = {}
+    for _, part in ipairs(Workspace:GetDescendants()) do
+        if part.Name == nome and part:IsA("BasePart") then
+            table.insert(parts, part)
+        end
+    end
+    if #parts > 0 then
+        return parts[math.random(1, #parts)]
+    end
+    return nil
+end
+
+local function getClosestPart(nome)
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+    local hrp = char.HumanoidRootPart
+    local closest = nil
+    local closestDist = math.huge
+    for _, part in ipairs(Workspace:GetDescendants()) do
+        if part.Name == nome and part:IsA("BasePart") then
+            local dist = (part.Position - hrp.Position).Magnitude
+            if dist < closestDist then
+                closest = part
+                closestDist = dist
+            end
+        end
+    end
+    return closest
+end
+
+-- getClosestModel com filtro de HP apenas para Farm Level e Automático
+local function getClosestModel(nome, ignoreLowHP)
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+    local hrp = char.HumanoidRootPart
+    local closest = nil
+    local closestDist = math.huge
+    for _, model in ipairs(Workspace:GetDescendants()) do
+        if model:IsA("Model") and model.Name == nome and model:FindFirstChild("HumanoidRootPart") and model:FindFirstChild("Humanoid") then
+            local hum = model.Humanoid
+            if ignoreLowHP and hum.Health / hum.MaxHealth <= 0 then
+                continue
+            end
+            local root = model.HumanoidRootPart
+            local dist = (root.Position - hrp.Position).Magnitude
+            if dist < closestDist then
+                closest = root
+                closestDist = dist
+            end
+        end
+    end
+    return closest
+end
+
+-- TP especial (pra trás, olhando para o alvo)
+local function tpEspecial(part)
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp or not part then return end
+    local offsetPos = part.Position - (part.Position - hrp.Position).unit * 4 + Vector3.new(0, 3, 0)
+    hrp.CFrame = CFrame.lookAt(offsetPos, part.Position)
+end
+
+-- TP em cima olhando para o alvo
+local function tpEmCima(part)
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp or not part then return end
+    local pos = part.Position + Vector3.new(0, 8, 0)
+    hrp.CFrame = CFrame.lookAt(pos, part.Position)
+end
+
+-- TP grudado olhando para o mob
+local function tpGrudado(rootPart)
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp or not rootPart then return end
+    local pos = rootPart.Position + Vector3.new(0, 0, -2)
+    hrp.CFrame = CFrame.lookAt(pos, rootPart.Position)
+end
+
+-- Quest Auto
+local function aceitarQuest(npc, extra)
+    local mission = player:FindFirstChild("CurrentMission")
+    if not mission or #mission:GetChildren() == 0 then
+        ReplicatedStorage.MainRemote:FireServer(
+            "pcgamer",
+            {NpcName = npc, Extra = extra, Type = "questpls"}
+        )
+    end
+end
+
+-- Grab mobs (Premium) - SEM filtro de HP
+local function getMobsMaisProximos(nome, quantidade)
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return {} end
+    local hrp = char.HumanoidRootPart
+    local mobs = {}
+    for _, m in ipairs(Workspace:GetDescendants()) do    
+        if (m:IsA("BasePart") and m.Name == nome) or (m:IsA("Model") and m.Name == nome and m:FindFirstChild("HumanoidRootPart")) then    
+            local targetPart = m:IsA("Model") and m.HumanoidRootPart or m
+            local dist = (targetPart.Position - hrp.Position).Magnitude
+            table.insert(mobs, {Root = targetPart, Dist = dist})
+        end    
+    end
+    table.sort(mobs, function(a, b) return a.Dist < b.Dist end)
+    local resultado = {}
+    for i = 1, math.min(quantidade, #mobs) do
+        table.insert(resultado, mobs[i].Root)
+    end
+    return resultado
+end
+
+local function grabMob(mobRoot)
+    if not mobRoot then return end
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    mobRoot.CFrame = hrp.CFrame * CFrame.new(0, 0, -4)
+end
+
+-- Boss
+local function getBossRoot(nome)
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj.Name == nome and obj:FindFirstChild("HumanoidRootPart") then
+            return obj.HumanoidRootPart
+        end
+    end
+    return nil
+end
+
+local function grabBoss(bossRoot)
+    if not bossRoot then return end
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    bossRoot.CFrame = hrp.CFrame * CFrame.new(0, 0, -4)
+end
+
+-- TAB FARM
+local FarmTab = Window:Tab({ Title = "Farm", Locked = false })
+
+FarmTab:Section({ Title = "Farm Money (Premium)", TextSize = 17 })
+
+getgenv().AutoFarmActive = false
+local farmConnection = nil      
+local logicThread = nil
+local noclipConnection = nil
+
+-- CONSTANTES NOVO FARM
+local FINAL_POS = Vector3.new(72, 45, 470)
+local JUICE_TARGET = workspace:FindFirstChild("NPCs") and workspace.NPCs:FindFirstChild("Asta") and workspace.NPCs.Asta:FindFirstChild("GIVEMEJUICE")
+local NPC_NAME = "Yuno"
+local QUEST_TYPE = "DeliverGreenJuice"
+local targetCooldowns = {}
+
+-- ANTI-AFK
+player.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+
+-- FUNÇÕES DE LIMPEZA
+local function cleanupFarm()
+    if farmConnection then farmConnection:Disconnect() farmConnection = nil end
+    if noclipConnection then noclipConnection:Disconnect() noclipConnection = nil end
+    if logicThread then task.cancel(logicThread) logicThread = nil end
+    
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local bv = char.HumanoidRootPart:FindFirstChild("FarmHoldVelocity")
+        if bv then bv:Destroy() end
+        char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+    end
+end
+
+-- FUNÇÕES AUXILIARES
+local function enableFly(hrp)
+    local bv = hrp:FindFirstChild("FarmHoldVelocity") or Instance.new("BodyVelocity")
+    bv.Name = "FarmHoldVelocity"
+    bv.Velocity = Vector3.zero
+    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bv.P = 1250
+    bv.Parent = hrp
+end
+
+local function findTool(name)
+    local backpack = player:FindFirstChild("Backpack")
+    local char = player.Character
+    if not backpack or not char then return nil end
+    local tool = backpack:FindFirstChild(name) or char:FindFirstChild(name)
+    if not tool and name == "GreenJuice" then
+        tool = backpack:FindFirstChild("Green Juice") or char:FindFirstChild("Green Juice")
+    end
+    return tool
+end
+
+local function getMissionValue(name)
+    local cm = player:FindFirstChild("CurrentMission")
+    if cm then
+        local quest = cm:FindFirstChild(name)
+        if quest then return quest:GetAttribute("Current") or (quest:FindFirstChild("current") and quest.current.Value) or 0 end
+    end
+    return nil
+end
+
+local function farmClickTarget(hrp, target, offset)
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    hrp.CFrame = CFrame.lookAt((target.CFrame * offset).Position, target.Position)
+    enableFly(hrp)
+    task.wait(0.3)
+    VIM:SendMouseButtonEvent(0,0,0,true,game,0)
+    task.wait(0.05)
+    VIM:SendMouseButtonEvent(0,0,0,false,game,0)
+end
+
+-- TOGGLE NOVO
+FarmTab:Toggle({
+    Title = "Farm Money/XP (Premium)",
+    Desc = "Farm rápido de money e XP (0-250+)",
+    Icon = "dollar-sign",
+    Type = "Checkbox",
+    Value = false, 
+    Callback = function(state) 
+        getgenv().AutoFarmActive = state
+
+        if not state then
+            cleanupFarm()
+            print("Farm Money/XP: OFF")
+        else
+            print("Farm Money/XP: ON")
+
+            farmConnection = RunService.Heartbeat:Connect(function()
+                if not getgenv().AutoFarmActive then return end
+                
+                local char = player.Character
+                if not char then return end
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local human = char:FindFirstChild("Humanoid")
+                local backpack = player:FindFirstChild("Backpack")
+                
+                if hrp and human then
+                    local tool = backpack:FindFirstChild("GreenJuice") or backpack:FindFirstChild("Green Juice")
+                    if tool then human:EquipTool(tool) end
+
+                    if firetouchinterest and JUICE_TARGET then
+                        firetouchinterest(hrp, JUICE_TARGET, 0)
+                        firetouchinterest(hrp, JUICE_TARGET, 1)
+                    end
+                end
+            end)
+
+            logicThread = task.spawn(function()
+                while getgenv().AutoFarmActive do
+                    task.wait()
+                    
+                    pcall(function()
+                        if not getgenv().AutoFarmActive then return end
+                        
+                        local char = player.Character or player.CharacterAdded:Wait()
+                        local hrp = char:WaitForChild("HumanoidRootPart", 5)
+                        local human = char:WaitForChild("Humanoid", 5)
+                        if not hrp or not human then return end
+                        
+                        local level = player.leaderstats.Level.Value
+
+                        if level < 20 then
+                            local p = getMissionValue("CutWoods")
+                            if not p or p >= 5 then remote:FireServer("pcgamer", {Extra="CutWoods", Type="questpls", NpcName="Father Orfi"}) task.wait(0.5) return end
+                            local axe = findTool("MAxe")
+                            if axe and axe.Parent ~= char then human:EquipTool(axe) end
+                            local map = workspace:FindFirstChild("THEMAP")
+                            if map then
+                                for _, v in ipairs(map:GetDescendants()) do
+                                    if v.Name == "BREAKMEWP" and v:IsA("BasePart") then
+                                        local bVal = v:FindFirstChild("Breakable")
+                                        if not bVal or bVal.Value then farmClickTarget(hrp, v, CFrame.new(0,0,6)) break end
+                                    end
+                                end
+                            end
+
+                        elseif level < 60 then
+                            if player.CurrentMission:FindFirstChild("CutWoods") then remote:FireServer("unquest") task.wait(0.5) return end
+                            local p = getMissionValue("GetPotatoes")
+                            if not p or p >= 30 then remote:FireServer("pcgamer", {Extra="GetPotatoes", Type="questpls", NpcName="Chris"}) task.wait(0.5) return end
+                            local hoe = findTool("Hoe")
+                            if hoe and hoe.Parent ~= char then human:EquipTool(hoe) end
+                            local map = workspace:FindFirstChild("THEMAP")
+                            if map and map:FindFirstChild("HAGEPOTATOES") then
+                                for _, v in ipairs(map.HAGEPOTATOES:GetChildren()) do
+                                    if (v:IsA("BasePart") or v:IsA("Model")) and (not targetCooldowns[v] or os.time()-targetCooldowns[v]>30) then
+                                        local part = v:IsA("Model") and v.PrimaryPart or v
+                                        if part then farmClickTarget(hrp, part, CFrame.new(0,2,5)) targetCooldowns[v] = os.time() task.wait(1) break end
+                                    end
+                                end
+                            end
+
+                        elseif level < 125 then
+                            if player.CurrentMission:FindFirstChild("GetPotatoes") then remote:FireServer("unquest") task.wait(0.5) return end
+                            local p = getMissionValue("DeliverSteak")
+                            if not p or p >= 5 then remote:FireServer("pcgamer", {Extra="DeliverSteak", Type="questpls", NpcName="Chef Jack"}) task.wait(0.5) return end
+                            local plate = findTool("Plate")
+                            if plate and plate.Parent ~= char then human:EquipTool(plate) end
+                            local folder = workspace:FindFirstChild("WanderingNPCs")
+                            if folder then
+                                for _, npc in ipairs(folder:GetChildren()) do
+                                    local touch = npc:FindFirstChild("toucharea")
+                                    if touch and (not targetCooldowns[npc] or os.time()-targetCooldowns[npc]>10) then
+                                        enableFly(hrp) hrp.CFrame = touch.CFrame
+                                        if firetouchinterest then firetouchinterest(hrp, touch, 0) firetouchinterest(hrp, touch, 1) end
+                                        targetCooldowns[npc] = os.time() task.wait(1) break
+                                    end
+                                end
+                            end
+
+                        elseif level < 250 then
+                            if player.CurrentMission:FindFirstChild("DeliverSteak") then remote:FireServer("unquest") task.wait(0.5) return end
+                            local p = getMissionValue("DeliverGreenJuice")
+                            if not p or p >= 5 then remote:FireServer("pcgamer", {Extra="DeliverGreenJuice", Type="questpls", NpcName="Yuno"}) task.wait(0.5) return end
+                            if JUICE_TARGET then enableFly(hrp) hrp.CFrame = JUICE_TARGET.CFrame hrp.AssemblyLinearVelocity = Vector3.zero task.wait(0.5) end
+
+                        else
+                            if player.CurrentMission:FindFirstChild("DeliverSteak") then remote:FireServer("unquest") end
+                            
+                            enableFly(hrp)
+                            hrp.CFrame = CFrame.new(FINAL_POS)
+                            hrp.AssemblyLinearVelocity = Vector3.zero
+
+                            for i = 1, 40 do
+                                if not getgenv().AutoFarmActive then break end
+                                
+                                hrp.CFrame = CFrame.new(FINAL_POS)
+                                
+                                remote:FireServer("pcgamer", {Extra = QUEST_TYPE, Type = "questpls", NpcName = NPC_NAME})
+                                RunService.Heartbeat:Wait()
+
+                                remote:FireServer("unquest")
+                                RunService.Heartbeat:Wait()
+                            end
+                            task.wait(0.1)
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+})
+
+FarmTab:Section({ Title = "Farm Automático", TextSize = 17 })
+
+FarmTab:Toggle({
+    Title = "Farm Automático",
+    Desc = "Detecta seu Level e farma sozinho",
+    Callback = function(state)
+        farmAutomatico = state
+        if not state then 
+            desligarTudo() 
+            return 
+        end
+
+        task.spawn(function()
+            while farmAutomatico do
+                local lvl = getLevel()
+
+                desligarTudo()
+
+                if lvl <= 19 then
+                    rodandoFatherOrfi = true
+                    autoClick = true
+                    task.spawn(function()
+                        while rodandoFatherOrfi do
+                            equiparTool("MAxe")
+                            aceitarQuest("Father Orfi","CutWoods")
+                            task.wait(1.2)
+                        end
+                    end)
+                    task.spawn(function()
+                        while rodandoFatherOrfi do
+                            if not usePremiumFarm then
+                                local alvo = getRandomPart("BREAKMEWP")
+                                if alvo then
+                                    tpEspecial(alvo)
+                                end
+                            end
+                            task.wait(1)
+                        end
+                    end)
+
+                elseif lvl <= 124 then
+                    rodandoChris = true
+                    autoClick = true
+                    task.spawn(function()
+                        while rodandoChris do
+                            equiparTool("Hoe")
+                            aceitarQuest("Chris","GetPotatoes")
+                            task.wait(1.2)
+                        end
+                    end)
+                    task.spawn(function()
+                        while rodandoChris do
+                            if not usePremiumFarm then
+                                local alvo = getClosestPart("BATATAautomatica")
+                                if alvo then
+                                    tpEspecial(alvo)
+                                end
+                            end
+                            task.wait(1)
+                        end
+                    end)
+
+                elseif lvl <= 199 then
+                    rodandoYuno = true
+                    task.spawn(function()
+                        while rodandoYuno do
+                            aceitarQuest("Yuno","DeliverGreenJuice")
+                            task.wait(0.3)
+
+                            local missionFolder = player:FindFirstChild("CurrentMission")
+                            local hasDeliverMission = false
+
+                            if missionFolder then
+                                for _, child in ipairs(missionFolder:GetChildren()) do
+                                    if child.Name == "DeliverGreenJuice" then
+                                        hasDeliverMission = true
+                                        break
+                                    end
+                                end
+                            end
+
+                            if hasDeliverMission then
+                                equiparTool("Green Juice")
+                                local alvo = getClosestPart("GIVEMEJUICE")
+                                if alvo then
+                                    tpEmCima(alvo)
+                                end
+                            else
+                                desequiparTool()
+                            end
+
+                            task.wait(0.2)
+                        end
+                    end)
+
+                elseif lvl <= 249 then
+                    rodandoJohnny = true
+                    autoClick = true
+                    task.spawn(function()
+                        while rodandoJohnny do
+                            aceitarQuest("Johnny","DefeatThief")
+                            task.wait(1.2)
+                        end
+                    end)
+                    task.spawn(function()
+                        while rodandoJohnny do
+                            if not usePremiumFarm then
+                                local alvo = getClosestModel("Thief", true)
+                                if alvo then
+                                    tpGrudado(alvo)
+                                end
+                            end
+                            task.wait(0.2)
+                        end
+                    end)
+
+                elseif lvl <= 299 then
+                    rodandoAsta = true
+                    autoClick = true
+                    task.spawn(function()
+                        while rodandoAsta do
+                            equiparTool("Train")
+                            aceitarQuest("Asta","TrainBody")
+                            task.wait(1)
+                        end
+                    end)
+
+                elseif lvl <= 1199 then
+                    rodandoRenna = true
+                    autoClick = true
+                    task.spawn(function()
+                        while rodandoRenna do
+                            aceitarQuest("Renna","DefeatFire Boar")
+                            task.wait(1.2)
+                        end
+                    end)
+                    task.spawn(function()
+                        while rodandoRenna do
+                            if not usePremiumFarm then
+                                local alvo = getClosestModel("Fire Boar", true)
+                                if alvo then
+                                    tpGrudado(alvo)
+                                end
+                            end
+                            task.wait(0.2)
+                        end
+                    end)
+
+                elseif lvl <= 1999 then
+                    rodandoDavrqwy = true
+                    autoClick = true
+                    task.spawn(function()
+                        while rodandoDavrqwy do
+                            aceitarQuest("Davrqwy","DefeatGolem")
+                            task.wait(1.2)
+                        end
+                    end)
+                    task.spawn(function()
+                        while rodandoDavrqwy do
+                            if not usePremiumFarm then
+                                local alvo = getClosestModel("Golem", true)
+                                if alvo then
+                                    tpGrudado(alvo)
+                                end
+                            end
+                            task.wait(0.2)
+                        end
+                    end)
+
+                elseif lvl <= 2999 then
+                    rodandoFuegoleon = true
+                    autoClick = true
+                    task.spawn(function()
+                        while rodandoFuegoleon do
+                            remote:FireServer("pcgamer", {Extra = "DefeatBorula", Type = "questpls", NpcName = "Fuegoleon Vermillion"})
+                            task.wait(1.2)
+                        end
+                    end)
+                    task.spawn(function()
+                        while rodandoFuegoleon do
+                            if not usePremiumFarm then
+                                local alvo = getClosestModel("Borula", true)
+                                if alvo then
+                                    tpGrudado(alvo)
+                                end
+                            end
+                            task.wait(0.2)
+                        end
+                    end)
+
+                else
+                    rodandoAhmed = true
+                    autoClick = true
+                    task.spawn(function()
+                        while rodandoAhmed do
+                            aceitarQuest("ahmedBOOM234","DefeatSecurity Golem")
+                            task.wait(1.2)
+                        end
+                    end)
+                    task.spawn(function()
+                        while rodandoAhmed do
+                            if not usePremiumFarm then
+                                local alvo = getClosestModel("Security Golem", true)
+                                if alvo then
+                                    tpGrudado(alvo)
+                                end
+                            end
+                            task.wait(0.2)
+                        end
+                    end)
+                end
+
+                task.wait(3)
+            end
+
+            desequiparTool()
+        end)
+    end
+})
+
+FarmTab:Section({ Title = "Farm Level", TextSize = 17 })
+
+FarmTab:Toggle({ 
+    Title="Father Orfi Lvl 0", 
+    Callback=function(v)
+        desligarTudo()
+        rodandoFatherOrfi = v
+        autoClick = v
+        if v then
+            task.spawn(function()
+                while rodandoFatherOrfi do
+                    equiparTool("MAxe")
+                    aceitarQuest("Father Orfi","CutWoods")
+                    task.wait(1.2)
+                end
+            end)
+            task.spawn(function()
+                while rodandoFatherOrfi do
+                    if not usePremiumFarm then
+                        local alvo = getRandomPart("BREAKMEWP")
+                        if alvo then
+                            tpEspecial(alvo)
+                        end
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+FarmTab:Toggle({ 
+    Title="Chris Lvl 20", 
+    Callback=function(v)
+        desligarTudo()
+        rodandoChris = v
+        autoClick = v
+        if v then
+            task.spawn(function()
+                while rodandoChris do
+                    equiparTool("Hoe")
+                    aceitarQuest("Chris","GetPotatoes")
+                    task.wait(1.2)
+                end
+            end)
+            task.spawn(function()
+                while rodandoChris do
+                    if not usePremiumFarm then
+                        local alvo = getClosestPart("BATATAautomatica")
+                        if alvo then
+                            tpEspecial(alvo)
+                        end
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+FarmTab:Toggle({ 
+    Title="Yuno Lvl 125", 
+    Callback=function(v)
+        desligarTudo()
+        rodandoYuno = v
+        if v then
+            task.spawn(function()
+                while rodandoYuno do
+                    aceitarQuest("Yuno","DeliverGreenJuice")
+                    task.wait(0.3)
+
+                    local missionFolder = player:FindFirstChild("CurrentMission")
+                    local hasDeliverMission = false
+
+                    if missionFolder then
+                        for _, child in ipairs(missionFolder:GetChildren()) do
+                            if child.Name == "DeliverGreenJuice" then
+                                hasDeliverMission = true
+                                break
+                            end
+                        end
+                    end
+
+                    if hasDeliverMission then
+                        equiparTool("Green Juice")
+                        local alvo = getClosestPart("GIVEMEJUICE")
+                        if alvo then
+                            tpEmCima(alvo)
+                        end
+                    else
+                        desequiparTool()
+                    end
+
+                    task.wait(0.2)
+                end
+
+                desequiparTool()
+            end)
+        end
+    end
+})
+
+FarmTab:Toggle({ 
+    Title="Johnny Lvl 200", 
+    Callback=function(v)
+        desligarTudo()
+        rodandoJohnny = v
+        autoClick = v
+        if v then
+            task.spawn(function()
+                while rodandoJohnny do
+                    aceitarQuest("Johnny","DefeatThief")
+                    task.wait(1.2)
+                end
+            end)
+            task.spawn(function()
+                while rodandoJohnny do
+                    if not usePremiumFarm then
+                        local alvo = getClosestModel("Thief", true)
+                        if alvo then
+                            tpGrudado(alvo)
+                        end
+                    end
+                    task.wait(0.2)
+                end
+            end)
+        end
+    end
+})
+
+FarmTab:Toggle({ 
+    Title="Asta Lvl 250", 
+    Callback=function(v)
+        desligarTudo()
+        rodandoAsta = v
+        autoClick = v
+        if v then
+            task.spawn(function()
+                while rodandoAsta do
+                    equiparTool("Train")
+                    aceitarQuest("Asta","TrainBody")
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+FarmTab:Toggle({ 
+    Title="Renna Lvl 300", 
+    Callback=function(v)
+        desligarTudo()
+        rodandoRenna = v
+        autoClick = v
+        if v then
+            task.spawn(function()
+                while rodandoRenna do
+                    aceitarQuest("Renna","DefeatFire Boar")
+                    task.wait(1.2)
+                end
+            end)
+            task.spawn(function()
+                while rodandoRenna do
+                    if not usePremiumFarm then
+                        local alvo = getClosestModel("Fire Boar", true)
+                        if alvo then
+                            tpGrudado(alvo)
+                        end
+                    end
+                    task.wait(0.2)
+                end
+            end)
+        end
+    end
+})
+
+FarmTab:Toggle({ 
+    Title="Davrqwy Lvl 1200", 
+    Callback=function(v)
+        desligarTudo()
+        rodandoDavrqwy = v
+        autoClick = v
+        if v then
+            task.spawn(function()
+                while rodandoDavrqwy do
+                    aceitarQuest("Davrqwy","DefeatGolem")
+                    task.wait(1.2)
+                end
+            end)
+            task.spawn(function()
+                while rodandoDavrqwy do
+                    if not usePremiumFarm then
+                        local alvo = getClosestModel("Golem", true)
+                        if alvo then
+                            tpGrudado(alvo)
+                        end
+                    end
+                    task.wait(0.2)
+                end
+            end)
+        end
+    end
+})
+
+-- NOVA MISSÃO ADICIONADA
+FarmTab:Toggle({ 
+    Title="Fuegoleon Vermillion Lvl 3000", 
+    Callback=function(v)
+        desligarTudo()
+        rodandoFuegoleon = v
+        autoClick = v
+        if v then
+            task.spawn(function()
+                while rodandoFuegoleon do
+                    remote:FireServer("pcgamer", {Extra = "DefeatBorula", Type = "questpls", NpcName = "Fuegoleon Vermillion"})
+                    task.wait(1.2)
+                end
+            end)
+            task.spawn(function()
+                while rodandoFuegoleon do
+                    if not usePremiumFarm then
+                        local alvo = getClosestModel("Borula", true)
+                        if alvo then
+                            tpGrudado(alvo)
+                        end
+                    end
+                    task.wait(0.2)
+                end
+            end)
+        end
+    end
+})
+
+FarmTab:Toggle({ 
+    Title="ahmedBOOM234 Lvl 2000", 
+    Callback=function(v)
+        desligarTudo()
+        rodandoAhmed = v
+        autoClick = v
+        if v then
+            task.spawn(function()
+                while rodandoAhmed do
+                    aceitarQuest("ahmedBOOM234","DefeatSecurity Golem")
+                    task.wait(1.2)
+                end
+            end)
+            task.spawn(function()
+                while rodandoAhmed do
+                    if not usePremiumFarm then
+                        local alvo = getClosestModel("Security Golem", true)
+                        if alvo then
+                            tpGrudado(alvo)
+                        end
+                    end
+                    task.wait(0.2)
+                end
+            end)
+        end
+    end
+})
+
+-- Config Farm
+local Section = FarmTab:Section({ 
+    Title = "Config Farm",
+    TextXAlignment = "Left",
+    TextSize = 17,
+})
+
+Section:Slider({
+    Title = "Quantidade de Grab",
+    Desc = "Quantos mobs puxar ao mesmo tempo (1-10)",
+    Step = 1,
+    Value = { Min = 1, Max = 10, Default = 5 },
+    Callback = function(value) quantidadeGrab = value end
+})
+
+Section:Toggle({ 
+    Title = "Farm Bring (Premium)",
+    Callback = function(state)
+        usePremiumFarm = state
+    end 
+})
+
+RunService.Heartbeat:Connect(function()
+    local mobsParaPuxar = {}
+    if usePremiumFarm and rodandoFatherOrfi then table.insert(mobsParaPuxar, "BREAKMEWP")
+    elseif usePremiumFarm and rodandoChris then table.insert(mobsParaPuxar, "BATATAautomatica")
+    elseif usePremiumFarm and rodandoJohnny then table.insert(mobsParaPuxar, "Thief")
+    elseif usePremiumFarm and rodandoRenna then table.insert(mobsParaPuxar, "Fire Boar")
+    elseif usePremiumFarm and rodandoDavrqwy then table.insert(mobsParaPuxar, "Golem")
+    elseif usePremiumFarm and rodandoFuegoleon then table.insert(mobsParaPuxar, "Borula")  -- Bring para Borula
+    elseif usePremiumFarm and rodandoAhmed then table.insert(mobsParaPuxar, "Security Golem")
+    end
+
+    for _, nomeMob in ipairs(mobsParaPuxar) do
+        local alvos = getMobsMaisProximos(nomeMob, quantidadeGrab)
+        for _, root in ipairs(alvos) do grabMob(root) end
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if usePremiumFarm and (rodandoFatherOrfi or rodandoChris or rodandoJohnny or rodandoRenna or 
+        rodandoDavrqwy or rodandoFuegoleon or rodandoAhmed) then
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.CFrame = CFrame.new(premiumPlatformPosition + Vector3.new(0, 5, 0)) end
+    end
+end)
+
+-- TAB BOSS
+local BossTab = Window:Tab({ Title = "Boss", Locked = false })
+
+BossTab:Section({ Title = "Boss", TextXAlignment = "Left", TextSize = 17 })
+
+BossTab:Toggle({
+    Title = "Boss Licht",
+    Callback = function(state)
+        desligarTudo()
+        bossLichtEnabled = state
+        bossWitchQueenEnabled = false
+        autoClick = state
+    end
+})
+
+BossTab:Toggle({
+    Title = "Boss Witch Queen",
+    Callback = function(state)
+        desligarTudo()
+        bossWitchQueenEnabled = state
+        bossLichtEnabled = false
+        autoClick = state
+    end
+})
+
+local bossConfigSection = BossTab:Section({ Title = "Boss Config", TextXAlignment = "Left", TextSize = 17 })
+
+bossConfigSection:Toggle({
+    Title = "Kill Boss Easy",
+    Callback = function(state)
+        killBossEasyEnabled = state
+        if state and not (bossLichtEnabled or bossWitchQueenEnabled) then
+            StarterGui:SetCore("SendNotification",{Title="Aviso",Text="Selecione um boss primeiro!",Duration=4})
+            killBossEasyEnabled = false
+        end
+    end
+})
+
+bossConfigSection:Slider({
+    Title = "Distância do Boss",
+    Step = 1,
+    Value = { Min = 0, Max = 50, Default = 20 },
+    Callback = function(value) bossDistance = value end
+})
+
+RunService.Heartbeat:Connect(function()
+    if not (bossLichtEnabled or bossWitchQueenEnabled) then return end
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local bossName = bossLichtEnabled and "Licht" or "Witch Queen"
+    local bossRoot = getBossRoot(bossName)
+    if not bossRoot then return end
+    if killBossEasyEnabled then
+        hrp.CFrame = CFrame.new(bossPlatformPosition + Vector3.new(0, 5, 0))
+        grabBoss(bossRoot)
+    else
+        hrp.CFrame = bossRoot.CFrame * CFrame.new(0, 0, -bossDistance)
+    end
+end)
+
+-- ================== ADIÇÃO DO SPIN ==================
+local SpinTab = Window:Tab({ Title = "Spin", Locked = false })
+
+local Races = {
+    "Human",
+    "Dwarf",
+    "Elf"
+}
+
+local Classes = {
+    "Peasant",
+    "Noble",
+    "Royal",
+    "Witch"
+}
+
+local Traits = {
+    "Toughened Body",
+    "Quick Learner",
+    "Mana Blessed",
+    "Tenacity",
+    "Spirit's Favor",
+    "Parallel Mind",
+    "Prodigy",
+    "Loved By Mana"
+}
+
+local Cooldown = 4
+
+local SelectedRace = nil
+local AutoRace = false
+local RaceConnection = nil
+local LastRaceTime = 0
+local AutoRaceToggle = nil
+
+local SelectedTrait = nil
+local AutoTrait = false
+local TraitConnection = nil
+local LastTraitTime = 0
+local AutoTraitToggle = nil
+
+local SelectedClass = nil
+local AutoClass = false
+local ClassConnection = nil
+local LastClassTime = 0
+local AutoClassToggle = nil
+
+SpinTab:Section({ 
+    Title = "Race",
+    TextXAlignment = "Left",
+    TextSize = 17,
+})
+
+SpinTab:Dropdown({
+    Title = "Select Race",
+    Desc = "Choose the race to roll",
+    Values = Races,
+    Default = nil,
+    Callback = function(value)
+        SelectedRace = value
+    end
+})
+
+AutoRaceToggle = SpinTab:Toggle({
+    Title = "Auto Roll Race",
+    Desc = "Automatically spin until selected race",
+    Icon = "repeat",
+    Type = "Checkbox",
+    Default = false,
+    Callback = function(state)
+        AutoRace = state
+
+        if not AutoRace then
+            if RaceConnection then
+                RaceConnection:Disconnect()
+                RaceConnection = nil
+            end
+            return
+        end
+
+        if not SelectedRace then
+            StarterGui:SetCore("SendNotification", {
+                Title = "Sor_UmPlayer Hub",
+                Text = "Selecione uma raça primeiro!",
+                Duration = 4
+            })
+            AutoRaceToggle:Set(false)
+            return
+        end
+
+        RaceConnection = RunService.Heartbeat:Connect(function()
+            if not AutoRace then return end
+
+            local currentButton = player.PlayerGui.MainGui.PlayFrame.CustomizeFolder.CustomizeFrame.RacesFrame.CurrentFrame.RolledFrame.Current
+
+            if currentButton and currentButton.Text == SelectedRace then
+                AutoRace = false
+                AutoRaceToggle:Set(false)
+
+                if RaceConnection then
+                    RaceConnection:Disconnect()
+                    RaceConnection = nil
+                end
+
+                StarterGui:SetCore("SendNotification", {
+                    Title = "Sor_UmPlayer Hub",
+                    Text = "Raça obtida: " .. SelectedRace,
+                    Duration = 5
+                })
+
+                return
+            end
+
+            if os.clock() - LastRaceTime < Cooldown then
+                return
+            end
+
+            LastRaceTime = os.clock()
+            ReplicatedStorage.MainRemote:FireServer("SPINSTAT","RACE")
+        end)
+    end
+})
+
+SpinTab:Section({ 
+    Title = "Trait",
+    TextXAlignment = "Left",
+    TextSize = 17,
+})
+
+SpinTab:Dropdown({
+    Title = "Select Trait",
+    Desc = "Choose the trait to roll",
+    Values = Traits,
+    Default = nil,
+    Callback = function(value)
+        SelectedTrait = value
+    end
+})
+
+AutoTraitToggle = SpinTab:Toggle({
+    Title = "Auto Roll Trait",
+    Desc = "Automatically spin until selected trait",
+    Icon = "repeat",
+    Type = "Checkbox",
+    Default = false,
+    Callback = function(state)
+        AutoTrait = state
+
+        if not AutoTrait then
+            if TraitConnection then
+                TraitConnection:Disconnect()
+                TraitConnection = nil
+            end
+            return
+        end
+
+        if not SelectedTrait then
+            StarterGui:SetCore("SendNotification", {
+                Title = "Sor_UmPlayer Hub",
+                Text = "Selecione um traço primeiro!",
+                Duration = 4
+            })
+            AutoTraitToggle:Set(false)
+            return
+        end
+
+        TraitConnection = RunService.Heartbeat:Connect(function()
+            if not AutoTrait then return end
+
+            local currentButton = player.PlayerGui.MainGui.PlayFrame.CustomizeFolder.CustomizeFrame.TraitsFrame.CurrentFrame.RolledFrame.Current
+
+            if currentButton and currentButton.Text == SelectedTrait then
+                AutoTrait = false
+                AutoTraitToggle:Set(false)
+
+                if TraitConnection then
+                    TraitConnection:Disconnect()
+                    TraitConnection = nil
+                end
+
+                StarterGui:SetCore("SendNotification", {
+                    Title = "Sor_UmPlayer Hub",
+                    Text = "Traço obtido: " .. SelectedTrait,
+                    Duration = 5
+                })
+
+                return
+            end
+
+            if os.clock() - LastTraitTime < Cooldown then
+                return
+            end
+
+            LastTraitTime = os.clock()
+            ReplicatedStorage.MainRemote:FireServer("SPINSTAT","TRAIT")
+        end)
+    end
+})
+
+SpinTab:Section({ 
+    Title = "Class",
+    TextXAlignment = "Left",
+    TextSize = 17,
+})
+
+SpinTab:Dropdown({
+    Title = "Select Class",
+    Desc = "Choose the class to roll",
+    Values = Classes,
+    Default = nil,
+    Callback = function(value)
+        SelectedClass = value
+    end
+})
+
+AutoClassToggle = SpinTab:Toggle({
+    Title = "Auto Roll Class",
+    Desc = "Automatically spin until selected class",
+    Icon = "repeat",
+    Type = "Checkbox",
+    Default = false,
+    Callback = function(state)
+        AutoClass = state
+
+        if not AutoClass then
+            if ClassConnection then
+                ClassConnection:Disconnect()
+                ClassConnection = nil
+            end
+            return
+        end
+
+        if not SelectedClass then
+            StarterGui:SetCore("SendNotification", {
+                Title = "Sor_UmPlayer Hub",
+                Text = "Selecione uma classe primeiro!",
+                Duration = 4
+            })
+            AutoClassToggle:Set(false)
+            return
+        end
+
+        ClassConnection = RunService.Heartbeat:Connect(function()
+            if not AutoClass then return end
+
+            local currentButton = player.PlayerGui.MainGui.PlayFrame.CustomizeFolder.CustomizeFrame.ClassesFrame.CurrentFrame.RolledFrame.Current
+
+            if currentButton and currentButton.Text == SelectedClass then
+                AutoClass = false
+                AutoClassToggle:Set(false)
+
+                if ClassConnection then
+                    ClassConnection:Disconnect()
+                    ClassConnection = nil
+                end
+
+                StarterGui:SetCore("SendNotification", {
+                    Title = "Sor_UmPlayer Hub",
+                    Text = "Classe obtida: " .. SelectedClass,
+                    Duration = 5
+                })
+
+                return
+            end
+
+            if os.clock() - LastClassTime < Cooldown then
+                return
+            end
+
+            LastClassTime = os.clock()
+            ReplicatedStorage.MainRemote:FireServer("SPINSTAT","CLASS")
+        end)
+    end
+})
+
+-- ================== TAB INVENTORY (ÚLTIMA ABA) ==================
+
+local InventoryTab = Window:Tab({
+    Title = "Inventory",
+    Icon = "",
+    Locked = false,
+})
+
+-- ================== EQUIPAR TOOL ==================
+local equipSection = InventoryTab:Section({ 
+    Title = "Equipar Tool",
+    TextXAlignment = "Left",
+    TextSize = 17,
+})
+
+local selectedTool = nil
+local runningEquip = false
+local toolDropdown
+
+local function updateToolList()
+    local tools = {}
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack then
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                table.insert(tools, tool.Name)
+            end
+        end
+    end
+    if toolDropdown then
+        toolDropdown:Refresh(tools, true)
+    end
+end
+
+toolDropdown = equipSection:Dropdown({
+    Title = "Selecionar Tool",
+    Desc = "Escolha a tool do Backpack",
+    Values = {},
+    Multi = false,
+    Default = nil,
+    Callback = function(value)
+        selectedTool = value
+    end
+})
+
+equipSection:Toggle({
+    Title = "Equipar Tool (Loop)",
+    Desc = "Equipe automaticamente a tool selecionada",
+    Default = false,
+    Callback = function(state)
+        runningEquip = state
+    end
+})
+
+player.Backpack.ChildAdded:Connect(updateToolList)
+player.Backpack.ChildRemoved:Connect(updateToolList)
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    updateToolList()
+end)
+
+updateToolList()
+
+task.spawn(function()
+    while true do
+        if runningEquip and selectedTool then
+            local char = player.Character
+            local backpack = player:FindFirstChild("Backpack")
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+
+            if backpack and humanoid then
+                local tool = backpack:FindFirstChild(selectedTool)
+                if tool then
+                    humanoid:EquipTool(tool)
+                end
+            end
+        end
+        task.wait(0.35)
+    end
+end)
+
+-- ================== SELL ITEM ==================
+local sellSection = InventoryTab:Section({ 
+    Title = "Sell Item",
+    TextXAlignment = "Left",
+    TextSize = 17,
+})
+
+local selectedItems = {}
+local runningSell = false
+local itemDropdown
+
+local function updateInventoryList()
+    local items = {}
+    local inventory = player:FindFirstChild("stats") and player.stats:FindFirstChild("Inventory")
+
+    if inventory then
+        for _, item in ipairs(inventory:GetChildren()) do
+            if not table.find(items, item.Name) then
+                table.insert(items, item.Name)
+            end
+        end
+    end
+
+    table.sort(items)
+    if itemDropdown then
+        itemDropdown:Refresh(items, true)
+    end
+end
+
+itemDropdown = sellSection:Dropdown({
+    Title = "Vender Itens",
+    Desc = "Selecione os itens do Inventory",
+    Values = {},
+    Multi = true,
+    Default = {},
+    Callback = function(values)
+        selectedItems = values
+    end
+})
+
+sellSection:Toggle({
+    Title = "Vender Itens Selecionados",
+    Desc = "Vende automaticamente os itens escolhidos",
+    Default = false,
+    Callback = function(state)
+        runningSell = state
+
+        if state and #selectedItems == 0 then
+            StarterGui:SetCore("SendNotification",{
+                Title="Sor_UmPlayer Hub",
+                Text="Selecione pelo menos um item!",
+                Duration=4
+            })
+            runningSell = false
+            return
+        end
+
+        task.spawn(function()
+            while runningSell do
+                for _, itemName in ipairs(selectedItems) do
+                    local inventory = player.stats and player.stats:FindFirstChild("Inventory")
+                    if inventory and inventory:FindFirstChild(itemName) then
+                        remote:FireServer("selle", inventory[itemName])
+                    end
+                end
+                task.wait(0.5)
+            end
+        end)
+    end
+})
+
+local stats = player:WaitForChild("stats")
+local inventoryFolder = stats:WaitForChild("Inventory")
+
+inventoryFolder.ChildAdded:Connect(updateInventoryList)
+inventoryFolder.ChildRemoved:Connect(updateInventoryList)
+
+updateInventoryList()
+
+-- ================== FIM DO SCRIPT ==================
